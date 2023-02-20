@@ -1,0 +1,231 @@
+
+My code assumes that the necessary input parameters, such as V, hbar, omega, S, CV, D, r, and tau, are already defined or imported. The code first initializes the diffuson thermal conductivity as a vector of zeros with the length of N, the number of diffuson modes. It then uses a for loop to calculate the diffuson diffusivity for each mode based on the AF theory equations, and multiplies it by the corresponding heat capacity to obtain the diffuson thermal conductivity of each mode. Finally, it sums all the diffuson thermal conductivities to obtain the total diffuson thermal conductivity.
+
+The code then initializes the propagon thermal conductivity as zero and uses two nested for loops to calculate it for each wavevector and branch. Inside the inner for loop, it calculates the group velocity of each diffuson mode based on the AF theory equations, and sums the squared group velocity of each mode multiplied by the corresponding relaxation time to obtain the propagon thermal conductivity for each wavevector and branch. Finally, it sums all the propagon thermal conductivities to obtain the total propagon thermal conductivity.
+
+The delta_lorentzian function is defined to calculate the Lorentzian broadening of the Dirac delta function used in the AF theory equations for the diffuson diffusivity.
+
+
+
+
+% Define parameters
+hbar = 1.05457e-34; % Planck's constant
+pi = 3.14159; % pi
+V = 1; % Volume of the system
+delta_ave = 1; % Average frequency spacing
+v = 1:10; % Modes of the system
+q = [1, 1, 1]; % Wavevector
+
+% Compute diffuson diffusivity
+D_AF = zeros(length(v), 1);
+for i=1:length(v)
+for j=1:length(v)
+if i ~= j
+S_vvprime = 1; % Compute thermal coupling between modes
+delta = abs(v(i) - v(j));
+delta_approx = delta_ave / 6;
+D_AF(i) = D_AF(i) + (pi * V^2 * abs(S_vvprime)^2 * delta_approx) / (hbar^2 * v(i)^2);
+end
+end
+end
+
+% Compute diffuson thermal conductivity
+C_v = ones(length(v), 1); % Volumetric heat capacity
+kappa_diffuson = sum(C_v .* D_AF);
+
+% Compute group velocity
+v_g = zeros(length(v), 1);
+for i=1:length(v)
+for alpha=1:3
+for j=1:length(mode_i)
+for jprime=1:length(mode_i)
+e_alpha_j_v = 1; % Eigenvectors of mode v
+e_beta_jprime_vprime = 1; % Eigenvectors of mode v'
+r_jjprime_0 = 1; % Spatial overlap of eigenvectors
+phi_beta_alpha_jjprime_0 = 1; % Second-order force constants
+m_j = 1; % Mass of atom j
+m_jprime = 1; % Mass of atom j'
+v_g(i) = v_g(i) + (1 / (2 * sqrt(v(i) * v(jprime)))) * imag(e_alpha_j_v * phi_beta_alpha_jjprime_0 * r_jjprime_0 * e_beta_jprime_vprime);
+end
+end
+end
+end
+
+% Compute relaxation time
+tau = zeros(length(v), 1); % Relaxation time of mode v
+for i=1:length(v)
+tau(i) = 1; % Compute relaxation time of mode v
+end
+
+% Compute propagating thermal conductivity
+C_q_v = ones(length(v), 1); % Volumetric heat capacity
+kappa_propagon = sum(C_q_v .* v_g.^2 .* tau);
+% Compute diffuson thermal conductivity using AF theory
+kappa_diffuson = 0;
+for v=1:Nv
+D_AF = piV^2/(hbar^2omega(v)^2)sum(abs(S(v,:)).^2....
+delta_fun(omega(v)-omega).*(omega~=omega(v)));
+kappa_diffuson = kappa_diffuson + Cv(v)*D_AF;
+end
+
+% Compute group velocity for each pair of modes
+v_g = zeros(Nv, Nv);
+for v=1:Nv
+for vp=1:Nv
+temp_sum = 0;
+for alpha=1:3
+for j=1:N
+for jp=1:N
+temp_sum = temp_sum + e(alpha,j,v)*...
+D(j,jp,alpha,1)*r(j,jp)e(alpha,jp,vp);
+end
+end
+end
+v_g(v,vp) = 1i/(2sqrt(omega(v)*omega(vp)))*temp_sum;
+end
+end
+
+% Compute propagon thermal conductivity
+kappa_propagon = 0;
+for q_index=1:Nq
+q = q_list(q_index,:);
+for v=1:Nvq(q_index)
+kappa_propagon = kappa_propagon + Cvq(q_index,v)...
+abs(v_g(q_index,v))^2tau(q_index,v);
+end
+end
+
+% Total thermal conductivity
+kappa = kappa_diffuson + kappa_propagon;
+
+% Helper function to compute Lorentzian broadening
+function y = delta_fun(x)
+y = (1/pi)(0.56delta_ave)./((x-omega).^2+(0.56*delta_ave)^2);
+end
+
+% Example usage
+% Set material and simulation parameters
+N = 100; % Number of atoms
+rho = 2.2; % Density in g/cm^3
+T = 300; % Temperature in K
+kappa_bulk = 3.18; % Bulk thermal conductivity in W/mK
+delta_ave = 2pisqrt(kappa_bulk/(rhoT)); % Average frequency spacing
+V = N/rho; % Volume of the system
+hbar = 1.055e-34; % Reduced Planck constant in Js
+
+% Generate random positions and compute dynamic matrix
+r = 10rand(3,N);
+Phi = zeros(3,3,N,N);
+for i=1:N
+for j=1:N
+if i~=j
+x = r(:,i)-r(:,j);
+for alpha=1:3
+for beta=1:3
+Phi(alpha,beta,i,j) = (1/(4piVrho))...
+exp(-norm(x)^2/(2(delta_ave)^2))*...
+x(alpha)*x(beta)/norm(x)^2;
+end
+end
+end
+end
+end
+D = zeros(N,N,3,3);
+for i=1:N
+for j=1:N
+D(i,j,:,:) = squeeze(D(i,j,:,:)) + squeeze(Phi(:,:,i,j));
+end
+end
+
+% Compute eigenvalues and eigenvectors of dynamic matrix
+[eigvecs,omega] = eig(D);
+[omega,indices] = sort(diag(omega));
+eigvecs = eigvecs(:,indices);
+
+% Compute group velocity and structure factor
+S = zeros(Nv,Nv);
+e = zeros(3,N,Nv);
+Cv = zeros(Nv,1);
+for v=1:Nv
+e(:,:,v) = eigvecs(:,v);
+Cv(v) = hbaromega(v)/(k_BT)^2exp(hbaromega(v)/(k_BT))/...
+(exp(hbaromega(v)/(k_BT))-1)^2;
+for vp=1:Nv
+S(v,vp) = 1/Nsum(e(:,:,v).*e(:,:,vp),'all');
+end
+end
+
+% Compute wavevectors and wavevector-dependent properties
+q_max = sqrt(3)/22pi/(10/2); % Maximum wavevector
+q_list = generate_q_list(q_max); % List of wavevectors
+Nq = size(q_list,1); % Number of wavevectors
+Nvq = zeros(Nq,1); % Number of branches for each wavevector
+Cvq = zeros(Nq,Nv); % Volumetric heat capacity for each (q,v) pair
+tau = zeros(Nq,Nv); % Relaxation time for each (q,v) pair
+for q_index=1:Nq
+q = q_list(q_index,:);
+[branches,~,vq] = compute_dispersion(q,omega,eigvecs,D);
+Nvq(q_index) = length(branches);
+for v_index=1:length(branches)
+v = branches(v_index);
+Cvq(q_index,v_index) = Cv(v);
+tau(q_index,v_index) = compute_tau(q,v,vq,D,Cv);
+end
+end
+
+% Calculate diffuson thermal conductivity using AF theory
+kappa_diffuson = zeros(1, N); % N is the number of diffuson modes
+for v = 1:N
+D_AF = (piV^2)/(hbar^2omega(v)^2) * sum(abs(S(v,:)').^2 .* ...
+delta_lorentzian(omega(v), omega, delta_ave));
+kappa_diffuson(v) = CV(v) * D_AF;
+end
+kappa_diffuson = sum(kappa_diffuson);
+
+% Calculate propagon thermal conductivity
+kappa_propagon = 0;
+for q = 1:Nq
+for v = 1:Nv
+v_g_qv = zeros(3, N);
+for vv = 1:N
+v_g_qv(:,vv) = 1/(2*sqrt(omega(vv)*omega(v))) * ...
+sum(sum(repmat(eig_vec(:,vv),[1,3]).D(:,:,q,v,vv)....
+repmat(r(:,vv)-r(:,:,vv),[1,3]),1));
+end
+kappa_propagon = kappa_propagon + CV(q,v) * ...
+sum(v_g_qv(:,v).^2) * tau(q,v);
+end
+end
+
+% Define functions used in the code
+function delta = delta_lorentzian(w, omega, delta_ave)
+% Lorentzian broadening of Dirac delta function
+delta = (1/pi) * (delta_ave/2) ./ ((omega-w).^2 + (delta_ave/2)^2);
+end
+
+% Input parameters:
+% V: Volume of the system
+% hbar: Reduced Planck constant
+% omega: Vibrational frequencies of each branch (N x 1 or 1 x N)
+% S: Structure factor matrix (N x N)
+% CV: Heat capacity of each branch (N x 1 or 1 x N)
+% r: Atomic positions of each atom (3N x 1)
+% tau: Relaxation time of each propagating mode with wavevector q and branch v (Nq x Nv)
+
+% Compute propagating thermal conductivity
+kappa_propagon = 0; % Initialize propagating thermal conductivity
+
+% Loop over all wavevectors and branches
+for q = 1:Nq
+    for v = 1:Nv
+        % Compute volumetric heat capacity and group velocity
+        CV_qv = CV(q, v);
+        v_g_qv = v_g(q, v);
+
+        % Compute thermal conductivity of propagating mode
+        kappa_qv = CV_qv * v_g_qv^2 * tau(q, v);
+
+        % Add to total propagating thermal conductivity
+        kappa_propagon = kappa_propagon + kappa_qv;
+    end
+end
